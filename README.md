@@ -1,4 +1,4 @@
-# Nginx + php-fpm (v8) + nodejs
+# Nginx + php-fpm + nodejs
 
 Based on php:8.3.0-fpm-alpine3.18, node:21.3.0-alpine3.18 (nodejs is not included in most of other nginx-php images...but needed by a lot of php frameworks), with nginx:alpine and richarvey/nginx-php-fpm's Docker script
 
@@ -54,63 +54,11 @@ nginx version: nginx/1.25.3
 In this image it contains following PHP modules:
 
 ```
-# php -m
+# Modules
 [PHP Modules]
-amqp
-bcmath
-Core
-ctype
-curl
-date
-dom
-exif
-fileinfo
-filter
-ftp
-gd
-hash
-iconv
-igbinary
-imap
-intl
-json
-ldap
-libxml
-mbstring
-memcached
-mongodb
-msgpack
-mysqli
-mysqlnd
-openssl
-pcre
-PDO
-pdo_mysql
-pdo_pgsql
-pdo_sqlite
-pgsql
-Phar
-posix
-random
-readline
-redis
-Reflection
-session
-SimpleXML
-soap
-sockets
-sodium
-SPL
-sqlite3
-standard
-swoole
-tokenizer
-xml
-xmlreader
-xmlwriter
-Zend OPcache
-zip
-zlib
+bcmath amqp Core ctype curl date dom exif fileinfo filter ftp gd hash iconv igbinary imap intl json ldap libxml mbstring memcached mongodb
+msgpack mysqli mysqlnd openssl pcre PDO pdo_mysql pdo_pgsql pdo_sqlite pgsql Phar posix random readline redis Reflection session SimpleXML soap sockets sodium SPL sqlite3 standard
+swoole tokenizer xml xmlreader xmlwriter Zend OPcache zip zlib 
 
 [Zend Modules]
 Zend OPcache
@@ -130,7 +78,7 @@ Dockerfile:
 FROM ferilagi/invis:latest
 
 # copy source code
-COPY . /var/www/html
+COPY ./conf/www /var/www/html
 
 # If there is a conf folder under /var/www/html, the start.sh will
 # copy conf/nginx.conf to /etc/nginx/nginx.conf
@@ -138,7 +86,7 @@ COPY . /var/www/html
 # copy conf/nginx-site-ssl.conf to /etc/nginx/conf.d/default-ssl.conf
 
 # copy ssl cert files
-COPY conf/ssl /etc/nginx/ssl
+COPY ./conf/ssl /etc/nginx/ssl
 
 # China alpine mirror: mirrors.ustc.edu.cn
 ARG APKMIRROR=""
@@ -213,7 +161,7 @@ services:
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         volumes:
-            # you need to put your website into this folder ./www
+            # you need to put your website into this folder ./conf/www or edit as u wish
             - './conf/www:/var/www/html'
             - './conf/nginx:/etc/nginx/conf.d'
             # if you need add config to supervisor.d uncomment this line below
@@ -296,6 +244,8 @@ volumes:
 ```
 
 - Build image
+
+## check folder conf/supervisor and delete program with name larave-... if u dont wanna use it
 
 ```bash
 docker build -t my-webserver .
