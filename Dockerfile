@@ -194,7 +194,8 @@ RUN curl http://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --fil
     && apk add --no-cache --update --virtual .phpize-deps $PHPIZE_DEPS \
     && apk add --no-cache --update --virtual .all-deps $PHP_MODULE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp \
-    && docker-php-ext-install exif sockets gd bcmath intl soap mysqli pdo pdo_mysql pgsql pdo_pgsql zip ldap imap dom opcache \
+    && docker-php-ext-configure pcntl --enable-pcntl \
+    && docker-php-ext-install exif sockets gd bcmath intl pcntl soap mysqli pdo pdo_mysql pgsql pdo_pgsql zip ldap imap dom opcache \
     && printf "\n\n" | pecl install amqp \
     && docker-php-ext-enable amqp \
     && printf "\n\n\n\n" | pecl install -o -f redis \
