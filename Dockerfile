@@ -34,7 +34,7 @@ COPY conf/ssl/* /etc/nginx/ssl/
 COPY start.sh /start.sh
 
 # Install PHP extensions dependencies FIRST
-RUN apk add --no-cache \
+RUN apk add --no-cache --virtual .build-deps \
     binutils \
     # Untuk LDAP & Authentication
     krb5-dev \
@@ -49,11 +49,27 @@ RUN apk add --no-cache \
     postgresql-dev \
      # Untuk PHP extensions:
     linux-headers \
+    gd-dev \
     rabbitmq-c-dev \
     zlib-dev \
     libmemcached-dev \
     cyrus-sasl-dev \
     # Untuk lainnya
+    gcc \
+    libc-dev \
+    make \
+    openssl-dev \
+    pcre-dev \
+    zlib-dev \
+    linux-headers \
+    libxslt-dev \
+    geoip-dev \
+    perl-dev \
+    libedit-dev \
+    mercurial \
+    bash \
+    alpine-sdk \
+    findutils \
     libzip-dev \
     curl-dev \
     icu-dev \
@@ -120,23 +136,6 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
             set -x \
             && tempDir="$(mktemp -d)" \
             && chown nobody:nobody $tempDir \
-            && apk add --no-cache --virtual .build-deps \
-                gcc \
-                libc-dev \
-                make \
-                openssl-dev \
-                pcre-dev \
-                zlib-dev \
-                linux-headers \
-                libxslt-dev \
-                gd-dev \
-                geoip-dev \
-                perl-dev \
-                libedit-dev \
-                mercurial \
-                bash \
-                alpine-sdk \
-                findutils \
             && su nobody -s /bin/sh -c " \
                 export HOME=${tempDir} \
                 && cd ${tempDir} \
