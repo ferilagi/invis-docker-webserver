@@ -28,13 +28,13 @@ COPY conf/ssl/* /etc/nginx/ssl/
 
 COPY start.withoutNodejs.sh /start.sh
 
-ENV PHP_MODULE_DEPS gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev cyrus-sasl-dev libpng-dev libxml2-dev krb5-dev curl-dev icu-dev libzip-dev openldap-dev imap-dev postgresql-dev libjpeg-turbo-dev freetype-dev libwebp-dev
+ENV PHP_MODULE_DEPS="gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev cyrus-sasl-dev libpng-dev libxml2-dev krb5-dev curl-dev icu-dev libzip-dev openldap-dev imap-dev postgresql-dev libjpeg-turbo-dev freetype-dev libwebp-dev"
 # ENV MUSL_LOCALE_DEPS cmake make musl-dev gcc gettext-dev libintl 
 # ENV MUSL_LOCPATH /usr/share/i18n/locales/musl
 
-ENV NGINX_VERSION 1.28.0
-ENV NJS_VERSION   0.9.4
-ENV PKG_RELEASE   6
+ENV NGINX_VERSION=1.28.0
+ENV NJS_VERSION=0.9.4
+ENV PKG_RELEASE=6
 
 RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpinelinux.org/'$APKMIRROR'/g' /etc/apk/repositories; fi \
     && set -x \
