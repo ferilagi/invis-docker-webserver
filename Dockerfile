@@ -37,7 +37,7 @@ COPY start.sh /start.sh
 RUN apk add --no-cache \
     imap-dev \
     krb5-dev \
-    libc-client \
+    uw-imap-dev \
     libpng-dev \
     libwebp-dev \
     libjpeg-turbo-dev \
