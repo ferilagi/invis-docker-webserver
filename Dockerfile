@@ -77,8 +77,8 @@ RUN apk add --no-cache --virtual .build-deps \
 
 # Configure and install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-RUN docker-php-ext-install sockets && sleep 2
 RUN docker-php-ext-install gd && sleep 2  
+RUN docker-php-ext-install sockets && sleep 2
 RUN docker-php-ext-install bcmath && sleep 2
 RUN docker-php-ext-install intl && sleep 2
 RUN docker-php-ext-install pcntl && sleep 2
