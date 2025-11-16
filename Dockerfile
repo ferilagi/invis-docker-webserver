@@ -35,24 +35,25 @@ COPY start.sh /start.sh
 
 # Install PHP extensions dependencies FIRST
 RUN apk add --no-cache \
-    imap-dev \
+    # Untuk LDAP & Authentication
     krb5-dev \
-    uw-imap-dev \
+    openldap-dev \
+    # Untuk GD Image
     libpng-dev \
     libwebp-dev \
     libjpeg-turbo-dev \
     freetype-dev \
+    # Untuk Database & XML
     libxml2-dev \
     postgresql-dev \
+    # Untuk lainnya
     libzip-dev \
-    openldap-dev \
     curl-dev \
     icu-dev \
     oniguruma-dev
 
 # Configure and install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
-    docker-php-ext-configure imap --with-imap --with-imap-ssl && \
     docker-php-ext-install \
         exif \
         sockets \
@@ -68,7 +69,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
         pdo_pgsql \
         zip \
         ldap \
-        imap \
         dom \
         opcache
 
@@ -186,10 +186,8 @@ RUN curl -sS http://getcomposer.org/installer | php -- --install-dir=/usr/bin/ -
         krb5-libs \
         icu-libs \
         icu \
-        c-client \
         libzip \
         openldap-clients \
-        imap \
         postgresql-client \
         postgresql-libs \
         libcap \
