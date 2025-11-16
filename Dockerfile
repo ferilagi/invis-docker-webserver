@@ -46,6 +46,12 @@ RUN apk add --no-cache \
     # Untuk Database & XML
     libxml2-dev \
     postgresql-dev \
+     # Untuk PHP extensions:
+    linux-headers \
+    rabbitmq-c-dev \
+    zlib-dev \
+    libmemcached-dev \
+    cyrus-sasl-dev \
     # Untuk lainnya
     libzip-dev \
     curl-dev \
@@ -104,7 +110,6 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
                 openssl-dev \
                 pcre-dev \
                 zlib-dev \
-                linux-headers \
                 libxslt-dev \
                 gd-dev \
                 geoip-dev \
@@ -175,7 +180,6 @@ RUN curl -sS http://getcomposer.org/installer | php -- --install-dir=/usr/bin/ -
         bash \
         bash-completion \
         shadow \
-        linux-headers \
         supervisor \
         git \
         zip \
