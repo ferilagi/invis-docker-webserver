@@ -35,6 +35,7 @@ COPY start.sh /start.sh
 
 # Install PHP extensions dependencies FIRST
 RUN apk add --no-cache \
+    binutils \
     # Untuk LDAP & Authentication
     krb5-dev \
     openldap-dev \
