@@ -61,23 +61,22 @@ RUN apk add --no-cache \
 
 # Configure and install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
-    docker-php-ext-install \
-        exif \
-        sockets \
-        gd \
-        bcmath \
-        intl \
-        pcntl \
-        soap \
-        mysqli \
-        pdo \
-        pdo_mysql \
-        pgsql \
-        pdo_pgsql \
-        zip \
-        ldap \
-        dom \
-        opcache
+RUN docker-php-ext-install sockets && sleep 2
+RUN docker-php-ext-install gd && sleep 2  
+RUN docker-php-ext-install bcmath && sleep 2
+RUN docker-php-ext-install intl && sleep 2
+RUN docker-php-ext-install pcntl && sleep 2
+RUN docker-php-ext-install exif && sleep 2
+RUN docker-php-ext-install soap && sleep 2
+RUN docker-php-ext-install mysqli && sleep 2
+RUN docker-php-ext-install pdo && sleep 2
+RUN docker-php-ext-install pdo_mysql && sleep 2
+RUN docker-php-ext-install pgsql && sleep 2
+RUN docker-php-ext-install pdo_pgsql && sleep 2
+RUN docker-php-ext-install zip && sleep 2
+RUN docker-php-ext-install ldap && sleep 2
+RUN docker-php-ext-install dom && sleep 2
+RUN docker-php-ext-install opcache && sleep 2
 
 # nginx-1.28.0 (gunakan versi stable, bukan 1.29.3)
 ENV NGINX_VERSION=1.29.3
