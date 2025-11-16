@@ -38,9 +38,9 @@ ENV PHP_MODULE_DEPS="gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev 
 # ENV MUSL_LOCPATH /usr/share/i18n/locales/musl
 
 # nginx-1.29.3
-ENV NGINX_VERSION=1.28.0
+ENV NGINX_VERSION=1.29.3
 ENV NJS_VERSION=0.9.4
-ENV PKG_RELEASE=6
+ENV PKG_RELEASE=1
 
 RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpinelinux.org/'$APKMIRROR'/g' /etc/apk/repositories; fi \
     && set -x \
@@ -162,8 +162,8 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
     && ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
-ENV fpm_conf /usr/local/etc/php-fpm.d/www.conf
-ENV php_vars /usr/local/etc/php/conf.d/docker-vars.ini
+ENV fpm_conf="/usr/local/etc/php-fpm.d/www.conf"
+ENV php_vars="/usr/local/etc/php/conf.d/docker-vars.ini"
 
 RUN echo "cgi.fix_pathinfo=0" > ${php_vars} &&\
     echo "upload_max_filesize = 100M"  >> ${php_vars} &&\
