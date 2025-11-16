@@ -97,26 +97,28 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
         nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r${PKG_RELEASE} \
     " \
     && case "$apkArch" in \
-        x86_64|aarch64) \
-            # Install langsung dari Alpine repo (skip complex key verification)
-            apk add --no-cache $nginxPackages \
-            ;; \
-        *) \
-            # Build dari source untuk architecture lain
+        x86_64|aarch64|*) \
+            # BUILD DARI SOURCE untuk semua architecture
             set -x \
             && tempDir="$(mktemp -d)" \
             && chown nobody:nobody $tempDir \
             && apk add --no-cache --virtual .build-deps \
+                gcc \
+                libc-dev \
+                make \
                 openssl-dev \
                 pcre-dev \
                 zlib-dev \
+                linux-headers \
                 libxslt-dev \
                 gd-dev \
                 geoip-dev \
                 perl-dev \
                 libedit-dev \
                 mercurial \
+                bash \
                 alpine-sdk \
+                findutils \
             && su nobody -s /bin/sh -c " \
                 export HOME=${tempDir} \
                 && cd ${tempDir} \
@@ -126,7 +128,10 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
                 && cd alpine \
                 && make all \
                 && apk index -o ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz ${tempDir}/packages/alpine/${apkArch}/*.apk \
+                && abuild-sign -k ${tempDir}/.abuild/abuild-key.rsa ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz \
                 " \
+            && cp ${tempDir}/.abuild/abuild-key.rsa.pub /etc/apk/keys/ \
+            && apk del .build-deps \
             && apk add -X ${tempDir}/packages/alpine/ --no-cache $nginxPackages \
             ;; \
     esac \
