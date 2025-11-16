@@ -1,8 +1,10 @@
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-FROM node:21.5.0-alpine3.19 AS nodejs
-FROM php:8.3.0-fpm-alpine3.19
+# node 24-alpine
+FROM node:24-alpine AS nodejs
+# php 8.4.14-fpm-alpine
+FROM php:8.4.14-fpm-alpine
 
 LABEL org.opencontainers.image.authors="Nahdammar(nahdammar@gmail.com)"
 LABEL org.opencontainers.image.url="https://www.github.com/ferilagi"
@@ -22,10 +24,11 @@ ENV COMPOSERMIRROR="https://mirrors.cloud.tencent.com/composer/"
 COPY --from=nodejs /opt /opt
 COPY --from=nodejs /usr/local /usr/local
 
-COPY conf/supervisord.conf /etc/supervisord.conf
-COPY conf/supervisor/php-fpm.conf /etc/supervisor/conf.d/php-fpm.conf
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY conf/supervisord.conf /etc/supervisord.conf
+COPY conf/supervisor/* /etc/supervisor/conf.d/
+COPY conf/ssl/* /etc/nginx/ssl/
 # COPY conf/resolv.conf /etc/resolv.conf
 
 COPY start.sh /start.sh
@@ -34,9 +37,10 @@ ENV PHP_MODULE_DEPS gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev c
 # ENV MUSL_LOCALE_DEPS cmake make musl-dev gcc gettext-dev libintl 
 # ENV MUSL_LOCPATH /usr/share/i18n/locales/musl
 
-ENV NGINX_VERSION 1.25.3
-ENV NJS_VERSION   0.8.2
-ENV PKG_RELEASE   1
+# nginx-1.29.3
+ENV NGINX_VERSION 1.28.0
+ENV NJS_VERSION   0.9.4
+ENV PKG_RELEASE   6
 
 RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpinelinux.org/'$APKMIRROR'/g' /etc/apk/repositories; fi \
     && set -x \
