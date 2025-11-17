@@ -1,15 +1,23 @@
 # -----------------------------------------------------------------------------
-# php-fpm_nginx_withoutnodejs - multi-stage optimized Dockerfile (APK nginx method)
-# - Stage php-builder   : compile PECL + core PHP extensions on php:8.4-fpm-alpine
-# - Stage runtime       : final runtime (php:8.4-fpm-alpine) with nginx (from nginx.org packages) + php-fpm + extensions
+# phpfpmnginx_withoutnodejs - final Dockerfile (APK nginx method, multi-stage)
+# - php-builder : build PECL + core PHP extensions on php:8.4-fpm-alpine
+# - runtime     : final runtime (php:8.4-fpm-alpine) with nginx (from nginx.org packages) + php-fpm + extensions
 #
-# Usage:
-# docker build --build-arg NGINX_VERSION=1.29.3 --build-arg NJS_VERSION=0.9.4 \
-#    --build-arg IMAGICK_VERSION=3.8.0 --build-arg TZ="Asia/Jakarta" -t phpfpmnginx_withoutnodejs:latest .
+# Build example:
+# docker build \
+#   --build-arg APKMIRROR=dl-cdn.alpinelinux.org \
+#   --build-arg NGINX_VERSION=1.29.3 \
+#   --build-arg NJS_VERSION=0.9.4 \
+#   --build-arg IMAGICK_VERSION=3.8.0 \
+#   --build-arg TZ="Asia/Jakarta" \
+#   -t phpfpmnginx_withoutnodejs:latest .
 # -----------------------------------------------------------------------------
+
+# build args (defaults match awal kamu)
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
+ARG APKMIRROR=dl-cdn.alpinelinux.org
 ARG PHP_IMAGE=php:8.4.14-fpm-alpine3.22
 ARG NGINX_VERSION=1.29.3
 ARG NJS_VERSION=0.9.4
@@ -17,28 +25,28 @@ ARG IMAGICK_VERSION=3.8.0
 ARG TZ=Asia/Jakarta
 
 # -----------------------------
-# STAGE: php-builder
-# Build all required PHP extensions (pecl + core) on top of official php image
+# Stage: php-builder
+# compile PECL extensions and core PHP extensions
 # -----------------------------
 FROM ${PHP_IMAGE} AS php-builder
 ARG IMAGICK_VERSION
 
-# install build deps for php extensions
-RUN apk add --no-cache --virtual .php-build-deps \
+# build deps for php extensions
+RUN apk update && apk add --no-cache --virtual .php-build-deps \
     autoconf make g++ gcc libc-dev libtool pkgconfig \
     zlib-dev libzip-dev oniguruma-dev icu-dev \
     libpng-dev libjpeg-turbo-dev freetype-dev libwebp-dev \
     imagemagick-dev rabbitmq-c-dev cyrus-sasl-dev \
     libmemcached-dev openldap-dev imap-dev postgresql-dev openssl-dev
 
-# install runtime libs used by extensions (copied to runtime)
+# runtime libs used by extensions (copied to runtime)
 RUN apk add --no-cache \
     libstdc++ zlib icu-libs libpng libjpeg-turbo freetype libwebp \
     imagemagick libzip oniguruma openssl
 
 WORKDIR /tmp
 
-# update pecl channel and install pecl extensions
+# install PECL extensions
 RUN set -eux; \
     pecl channel-update pecl.php.net || true; \
     printf "\n" | pecl install redis && docker-php-ext-enable redis; \
@@ -49,91 +57,99 @@ RUN set -eux; \
     printf "\n" | pecl install igbinary && docker-php-ext-enable igbinary; \
     printf "\n" | pecl install brotli && docker-php-ext-enable brotli
 
-# imagick compile (source)
+# imagick compile from source (locked version)
 RUN set -eux; \
     wget -qO /tmp/imagick.tar.gz "https://github.com/Imagick/imagick/archive/refs/tags/${IMAGICK_VERSION}.tar.gz"; \
     mkdir -p /tmp/imagick-src && tar -xzf /tmp/imagick.tar.gz -C /tmp/imagick-src --strip-components=1; \
     cd /tmp/imagick-src && phpize && ./configure && make -j$(nproc) && make install; \
     echo "extension=imagick.so" > /usr/local/etc/php/conf.d/imagick.ini
 
-# configure & install core php extensions required
+# configure & install core php extensions (exclude sockets compile; enable via ini)
 RUN set -eux; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-install -j$(nproc) \
-        sockets pcntl posix bcmath gd intl zip pdo pdo_mysql pgsql pdo_pgsql \
+        pcntl posix bcmath gd intl zip pdo pdo_mysql pgsql pdo_pgsql \
         opcache exif xml dom gettext soap
+
+# enable sockets (alpine php provides sockets binary; activate via ini)
+RUN echo "extension=sockets" > /usr/local/etc/php/conf.d/zz-sockets.ini
 
 # collect compiled extension .so files into /build-ext for copying
 RUN mkdir -p /build-ext && cp /usr/local/lib/php/extensions/*/*.so /build-ext/ || true
 
-# copy composer (official image)
+# copy composer from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# cleanup build deps to make this stage smaller
+# cleanup build deps and caches
 RUN apk del .php-build-deps || true && rm -rf /var/cache/apk/* /tmp/*
 
 # -----------------------------
-# STAGE: runtime (final)
-# - based on php:8.4-fpm-alpine to keep runtime consistent
-# - install nginx & modules from nginx.org packages (mainline alpine repo)
-# - copy compiled php extension .so files from php-builder
+# Stage: runtime (final)
+# - installs nginx + nginx modules from nginx.org packages (like punyamu)
+# - copies php .so files from php-builder
 # -----------------------------
 FROM ${PHP_IMAGE} AS runtime
+ARG APKMIRROR
 ARG NGINX_VERSION
 ARG NJS_VERSION
 ARG TZ
 ENV TZ=${TZ}
 
-# update apk mirrors if user provided APKMIRROR via build-arg (optional)
-# (not mandatory; kept out unless you want to support custom mirrors)
+# optionally switch mirror (same logic as original)
+RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpinelinux.org/'$APKMIRROR'/g' /etc/apk/repositories; fi \
+ && set -x \
+ && apk update
 
-# First install minimal tools and prerequisites for verifying nginx signing key
-RUN apk add --no-cache ca-certificates openssl wget
+# install minimal tools required for key verification and runtime
+RUN apk add --no-cache openssl ca-certificates wget
 
-# Prepare the list of nginx packages we want (match your original)
+# create nginx user/group first (consistent)
+RUN addgroup -g 101 -S nginx \
+ && adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+
+# define nginx packages similarly to original
 RUN apkArch="$(cat /etc/apk/arch)" \
  && nginxPackages=" \
-    nginx=${NGINX_VERSION}-r1 \
-    nginx-module-xslt=${NGINX_VERSION}-r1 \
-    nginx-module-geoip=${NGINX_VERSION}-r1 \
-    nginx-module-image-filter=${NGINX_VERSION}-r1 \
-    nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r1 \
-    nginx-mod-http-brotli \
- " \
+        nginx=${NGINX_VERSION}-r1 \
+        nginx-module-xslt=${NGINX_VERSION}-r1 \
+        nginx-module-geoip=${NGINX_VERSION}-r1 \
+        nginx-module-image-filter=${NGINX_VERSION}-r1 \
+        nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r1 \
+        nginx-mod-http-brotli \
+    " \
  && case "$apkArch" in \
     x86_64|aarch64) \
-        # official arches: add nginx.org signing key and install from nginx.org mainline repo for Alpine
         set -x \
         && apk add --no-cache --virtual .cert-deps openssl \
         && wget -O /tmp/nginx_signing.rsa.pub https://nginx.org/keys/nginx_signing.rsa.pub \
         && KEY_SHA512="de7031fdac1354096d3388d6f711a508328ce66c168967ee0658c294226d6e7a161ce7f2628d577d56f8b63ff6892cc576af6f7ef2a6aa2e17c62ff7b6bf0d98 *stdin" \
         && if [ "$(openssl rsa -pubin -in /tmp/nginx_signing.rsa.pub -text -noout | openssl sha512 -r)" = "$KEY_SHA512" ]; then \
-             echo "nginx signing key OK"; \
+             echo "key verification succeeded!"; \
              mv /tmp/nginx_signing.rsa.pub /etc/apk/keys/; \
            else \
-             echo "nginx signing key verification failed"; exit 1; \
+             echo "key verification failed!"; exit 1; \
            fi \
         && apk del .cert-deps \
         && apk add -X "https://nginx.org/packages/mainline/alpine/v$(egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release)/main" --no-cache $nginxPackages \
         ;; \
     *) \
-        # fallback for other arches: install default nginx from Alpine repos (no nginx.org packages)
+        # fallback for other arches: use distro nginx (may not have all nginx.org modules)
         apk add --no-cache nginx nginx-mod-http-brotli \
         ;; \
-  esac
+ esac
 
-# Install other minimal runtime packages we need (tzdata, supervisor, utils)
+# install runtime utilities and timezone support
 RUN apk add --no-cache tzdata bash curl wget ca-certificates supervisor shadow \
-    && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
-    && echo "${TZ}" > /etc/timezone \
-    && echo "date.timezone=${TZ}" > /usr/local/etc/php/conf.d/zz-timezone.ini
+ && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
+ && echo "${TZ}" > /etc/timezone \
+ && echo "date.timezone=${TZ}" > /usr/local/etc/php/conf.d/zz-timezone.ini
 
-# redirect nginx logs to docker stdout/stderr (ensure dir exists)
+# redirect nginx logs to docker stdout/stderr
 RUN mkdir -p /var/log/nginx \
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
+ && ln -sf /dev/stdout /var/log/nginx/access.log \
+ && ln -sf /dev/stderr /var/log/nginx/error.log
 
-# copy compiled php extensions into proper extension folder
+# copy compiled php extension .so files to runtime
 COPY --from=php-builder /build-ext/*.so /usr/local/lib/php/extensions/no-debug-non-zts-*/ || true
 
 # enable pecl extensions if not already enabled
@@ -145,7 +161,7 @@ RUN set -eux; \
 # copy imagick ini if exists
 COPY --from=php-builder /usr/local/etc/php/conf.d/imagick.ini /usr/local/etc/php/conf.d/imagick.ini || true
 
-# copy configuration files (you provide under conf/)
+# copy configuration files (provide these in build context under conf/)
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY conf/nginx/default-ssl.conf /etc/nginx/conf.d/default-ssl.conf
@@ -155,12 +171,12 @@ COPY conf/ssl/* /etc/nginx/ssl/
 COPY start.withoutNodejs.sh /start.sh
 RUN chmod +x /start.sh
 
-# create nginx user/group & set permissions for /var/www/html
+# ensure nginx user and permissions
 RUN addgroup -g 101 -S nginx || true \
  && adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx || true \
  && chown -R nginx:nginx /var/www/html || true
 
-# Strip some binaries and clean caches for smaller image
+# small stripping & cleanup
 RUN set -eux; \
     strip /usr/sbin/nginx || true; \
     find /usr/local/lib/php/extensions -name "*.so" -exec strip {} \; || true; \
@@ -170,7 +186,7 @@ WORKDIR /var/www/html
 
 EXPOSE 80 443
 
-# Healthcheck: check nginx /up and php-fpm status /php-fpm-status
+# healthcheck: nginx /up and php-fpm status
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD sh -c 'curl -fsS http://localhost/up >/dev/null && curl -fsS http://localhost/php-fpm-status >/dev/null || exit 1'
 
