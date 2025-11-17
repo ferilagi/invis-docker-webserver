@@ -8,7 +8,6 @@
 #   --build-arg APKMIRROR=dl-cdn.alpinelinux.org \
 #   --build-arg NGINX_VERSION=1.29.3 \
 #   --build-arg NJS_VERSION=0.9.4 \
-#   --build-arg IMAGICK_VERSION=3.8.0 \
 #   --build-arg TZ="Asia/Jakarta" \
 #   -t phpfpmnginx_withoutnodejs:latest .
 # -----------------------------------------------------------------------------
@@ -21,7 +20,6 @@ ARG APKMIRROR=dl-cdn.alpinelinux.org
 ARG PHP_IMAGE=php:8.4.14-fpm-alpine3.22
 ARG NGINX_VERSION=1.29.3
 ARG NJS_VERSION=0.9.4
-ARG IMAGICK_VERSION=3.8.0
 ARG TZ=Asia/Jakarta
 
 # -----------------------------
@@ -29,7 +27,6 @@ ARG TZ=Asia/Jakarta
 # compile PECL extensions and core PHP extensions
 # -----------------------------
 FROM ${PHP_IMAGE} AS php-builder
-ARG IMAGICK_VERSION
 
 # build deps for php extensions
 RUN apk update && apk add --no-cache --virtual .php-build-deps \
@@ -57,13 +54,6 @@ RUN set -eux; \
     printf "\n" | pecl install msgpack && docker-php-ext-enable msgpack; \
     printf "\n" | pecl install igbinary && docker-php-ext-enable igbinary; \
     printf "\n" | pecl install brotli && docker-php-ext-enable brotli
-
-# imagick compile from source (locked version)
-RUN set -eux; \
-    wget -qO /tmp/imagick.tar.gz "https://github.com/Imagick/imagick/archive/refs/tags/${IMAGICK_VERSION}.tar.gz"; \
-    mkdir -p /tmp/imagick-src && tar -xzf /tmp/imagick.tar.gz -C /tmp/imagick-src --strip-components=1; \
-    cd /tmp/imagick-src && phpize && ./configure && make -j$(nproc) && make install; \
-    echo "extension=imagick.so" > /usr/local/etc/php/conf.d/imagick.ini
 
 # configure & install core php extensions (exclude sockets compile; enable via ini)
 RUN set -eux; \
@@ -158,9 +148,6 @@ RUN set -eux; \
     for e in redis amqp memcached mongodb msgpack igbinary brotli; do \
       if [ ! -f /usr/local/etc/php/conf.d/${e}.ini ]; then echo "extension=${e}.so" > /usr/local/etc/php/conf.d/${e}.ini; fi; \
     done
-
-# copy imagick ini if exists
-COPY --from=php-builder /usr/local/etc/php/conf.d/imagick.ini /usr/local/etc/php/conf.d/imagick.ini || true
 
 # copy configuration files (provide these in build context under conf/)
 COPY conf/nginx.conf /etc/nginx/nginx.conf
