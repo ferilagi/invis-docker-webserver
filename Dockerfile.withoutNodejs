@@ -149,6 +149,7 @@ RUN apk del .php-build-deps || true && rm -rf /var/cache/apk/* /tmp/*
 # - strip remaining libs & cleanup
 # -----------------------------
 FROM ${PHP_IMAGE} AS runtime
+ARG TZ
 ENV TZ=${TZ}
 
 # minimal runtime packages (nginx dependencies, tzdata, supervisor, wget/curl)
