@@ -62,9 +62,6 @@ RUN set -eux; \
         pcntl posix bcmath gd intl zip pdo pdo_mysql pgsql pdo_pgsql \
         opcache exif xml dom gettext soap sockets mysqli
 
-# enable sockets (alpine php provides sockets binary; activate via ini)
-RUN echo "extension=sockets" > /usr/local/etc/php/conf.d/zz-sockets.ini
-
 # collect compiled extension .so files into /build-ext for copying
 RUN mkdir -p /build-ext && cp /usr/local/lib/php/extensions/*/*.so /build-ext/ || true
 
@@ -141,7 +138,10 @@ RUN mkdir -p /var/log/nginx \
  && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # copy compiled php extension .so files to runtime
-COPY --from=php-builder /build-ext/*.so /usr/local/lib/php/extensions/no-debug-non-zts-*/ || true
+COPY --from=php-builder /build-ext /build-ext
+RUN cp /build-ext/*.so /usr/local/lib/php/extensions/no-debug-non-zts-*/ || true \
+ && rm -rf /build-ext
+
 
 # enable pecl extensions if not already enabled
 RUN set -eux; \
