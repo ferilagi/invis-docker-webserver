@@ -69,7 +69,7 @@ RUN set -eux; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-install -j$(nproc) \
         pcntl posix bcmath gd intl zip pdo pdo_mysql pgsql pdo_pgsql \
-        opcache exif xml dom gettext soap socket
+        opcache exif xml dom gettext soap sockets mysqli
 
 # enable sockets (alpine php provides sockets binary; activate via ini)
 RUN echo "extension=sockets" > /usr/local/etc/php/conf.d/zz-sockets.ini
