@@ -1,8 +1,7 @@
 # -----------------------------------------------------------------------------
-# php-fpm_nginx_withoutnodejs - multi-stage optimized Dockerfile
-# - Stage nginx-builder : compile nginx with modules (brotli, headers-more, njs)
+# php-fpm_nginx_withoutnodejs - multi-stage optimized Dockerfile (APK nginx method)
 # - Stage php-builder   : compile PECL + core PHP extensions on php:8.4-fpm-alpine
-# - Stage runtime       : final runtime (php:8.4-fpm-alpine) with nginx + php-fpm + extensions
+# - Stage runtime       : final runtime (php:8.4-fpm-alpine) with nginx (from nginx.org packages) + php-fpm + extensions
 #
 # Usage:
 # docker build --build-arg NGINX_VERSION=1.29.3 --build-arg NJS_VERSION=0.9.4 \
@@ -11,7 +10,6 @@
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-ARG NGINX_IMAGE_BUILDER=alpine:3.22
 ARG PHP_IMAGE=php:8.4.14-fpm-alpine3.22
 ARG NGINX_VERSION=1.29.3
 ARG NJS_VERSION=0.9.4
@@ -19,72 +17,7 @@ ARG IMAGICK_VERSION=3.8.0
 ARG TZ=Asia/Jakarta
 
 # -----------------------------
-# STAGE 1: nginx-builder
-# Compile nginx from source with chosen modules (ngx_brotli, headers-more, njs)
-# -----------------------------
-FROM ${NGINX_IMAGE_BUILDER} AS nginx-builder
-ARG NGINX_VERSION
-ARG NJS_VERSION
-
-# build deps for nginx + modules
-RUN apk add --no-cache --virtual .nginx-build-deps \
-      build-base pcre-dev zlib-dev openssl-dev libxslt-dev gd-dev \
-      perl-dev linux-headers git wget curl autoconf automake pkgconf
-
-# runtime libs to be installed in final runtime as well
-RUN apk add --no-cache pcre zlib openssl libxslt gd brotli
-
-WORKDIR /tmp
-
-# fetch nginx source
-RUN wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.gz \
- && tar -xzf nginx.tar.gz && mv nginx-${NGINX_VERSION} nginx-src
-
-# clone modules we want
-RUN git clone --depth 1 https://github.com/google/ngx_brotli.git /tmp/ngx_brotli && \
-    (cd /tmp/ngx_brotli && git submodule update --init)
-
-RUN git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git /tmp/headers-more
-
-RUN wget -q "https://nginx.org/download/njs-${NJS_VERSION}.tar.gz" -O njs.tar.gz \
- && tar -xzf njs.tar.gz && mv njs-${NJS_VERSION} njs-src
-
-# configure & build nginx
-WORKDIR /tmp/nginx-src
-RUN ./configure \
-    --prefix=/usr/local/nginx \
-    --sbin-path=/usr/sbin/nginx \
-    --conf-path=/etc/nginx/nginx.conf \
-    --error-log-path=/var/log/nginx/error.log \
-    --http-log-path=/var/log/nginx/access.log \
-    --pid-path=/var/run/nginx.pid \
-    --with-cc-opt='-O2' \
-    --with-http_ssl_module \
-    --with-http_v2_module \
-    --with-stream \
-    --with-stream_ssl_module \
-    --with-http_sub_module \
-    --with-http_stub_status_module \
-    --with-file-aio \
-    --with-threads \
-    --add-module=/tmp/ngx_brotli \
-    --add-module=/tmp/headers-more \
-    --add-module=/tmp/njs-src/nginx \
-    && make -j$(nproc) && make install
-
-# strip binary to reduce size
-RUN strip /usr/sbin/nginx || true
-
-# collect nginx artifacts to /dist for copying later
-RUN mkdir -p /dist/usr/sbin /dist/usr/local/nginx /dist/var/log/nginx && \
-    cp /usr/sbin/nginx /dist/usr/sbin/ && \
-    cp -r /usr/local/nginx /dist/usr/local/nginx || true
-
-# cleanup build stage
-RUN rm -rf /tmp/*
-
-# -----------------------------
-# STAGE 2: php-builder
+# STAGE: php-builder
 # Build all required PHP extensions (pecl + core) on top of official php image
 # -----------------------------
 FROM ${PHP_IMAGE} AS php-builder
@@ -140,33 +73,65 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN apk del .php-build-deps || true && rm -rf /var/cache/apk/* /tmp/*
 
 # -----------------------------
-# STAGE 3: runtime (final)
+# STAGE: runtime (final)
 # - based on php:8.4-fpm-alpine to keep runtime consistent
-# - copy nginx binary & files from nginx-builder
+# - install nginx & modules from nginx.org packages (mainline alpine repo)
 # - copy compiled php extension .so files from php-builder
-# - install minimal runtime packages (tzdata, supervisor, curl/wget for healthcheck)
-# - apply timezone (ARG TZ/ENV TZ)
-# - strip remaining libs & cleanup
 # -----------------------------
 FROM ${PHP_IMAGE} AS runtime
+ARG NGINX_VERSION
+ARG NJS_VERSION
 ARG TZ
 ENV TZ=${TZ}
 
-# minimal runtime packages (nginx dependencies, tzdata, supervisor, wget/curl)
-RUN apk add --no-cache \
-    pcre zlib openssl libxslt gd geoip brotli tzdata bash curl wget ca-certificates supervisor shadow
+# update apk mirrors if user provided APKMIRROR via build-arg (optional)
+# (not mandatory; kept out unless you want to support custom mirrors)
 
-# apply timezone to system and php
-RUN cp /usr/share/zoneinfo/${TZ} /etc/localtime \
- && echo "${TZ}" > /etc/timezone \
- && echo "date.timezone=${TZ}" > /usr/local/etc/php/conf.d/zz-timezone.ini
+# First install minimal tools and prerequisites for verifying nginx signing key
+RUN apk add --no-cache ca-certificates openssl wget
 
-# copy nginx from builder
-COPY --from=nginx-builder /dist/usr/sbin/nginx /usr/sbin/nginx
-COPY --from=nginx-builder /dist/usr/local/nginx /usr/local/nginx || true
+# Prepare the list of nginx packages we want (match your original)
+RUN apkArch="$(cat /etc/apk/arch)" \
+ && nginxPackages=" \
+    nginx=${NGINX_VERSION}-r1 \
+    nginx-module-xslt=${NGINX_VERSION}-r1 \
+    nginx-module-geoip=${NGINX_VERSION}-r1 \
+    nginx-module-image-filter=${NGINX_VERSION}-r1 \
+    nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r1 \
+    nginx-mod-http-brotli \
+ " \
+ && case "$apkArch" in \
+    x86_64|aarch64) \
+        # official arches: add nginx.org signing key and install from nginx.org mainline repo for Alpine
+        set -x \
+        && apk add --no-cache --virtual .cert-deps openssl \
+        && wget -O /tmp/nginx_signing.rsa.pub https://nginx.org/keys/nginx_signing.rsa.pub \
+        && KEY_SHA512="de7031fdac1354096d3388d6f711a508328ce66c168967ee0658c294226d6e7a161ce7f2628d577d56f8b63ff6892cc576af6f7ef2a6aa2e17c62ff7b6bf0d98 *stdin" \
+        && if [ "$(openssl rsa -pubin -in /tmp/nginx_signing.rsa.pub -text -noout | openssl sha512 -r)" = "$KEY_SHA512" ]; then \
+             echo "nginx signing key OK"; \
+             mv /tmp/nginx_signing.rsa.pub /etc/apk/keys/; \
+           else \
+             echo "nginx signing key verification failed"; exit 1; \
+           fi \
+        && apk del .cert-deps \
+        && apk add -X "https://nginx.org/packages/mainline/alpine/v$(egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release)/main" --no-cache $nginxPackages \
+        ;; \
+    *) \
+        # fallback for other arches: install default nginx from Alpine repos (no nginx.org packages)
+        apk add --no-cache nginx nginx-mod-http-brotli \
+        ;; \
+  esac
 
-# ensure PATH contains sbin locations
-ENV PATH="/usr/sbin:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin"
+# Install other minimal runtime packages we need (tzdata, supervisor, utils)
+RUN apk add --no-cache tzdata bash curl wget ca-certificates supervisor shadow \
+    && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo "${TZ}" > /etc/timezone \
+    && echo "date.timezone=${TZ}" > /usr/local/etc/php/conf.d/zz-timezone.ini
+
+# redirect nginx logs to docker stdout/stderr (ensure dir exists)
+RUN mkdir -p /var/log/nginx \
+    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # copy compiled php extensions into proper extension folder
 COPY --from=php-builder /build-ext/*.so /usr/local/lib/php/extensions/no-debug-non-zts-*/ || true
@@ -180,7 +145,7 @@ RUN set -eux; \
 # copy imagick ini if exists
 COPY --from=php-builder /usr/local/etc/php/conf.d/imagick.ini /usr/local/etc/php/conf.d/imagick.ini || true
 
-# copy config files (you provide under conf/)
+# copy configuration files (you provide under conf/)
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY conf/nginx/default-ssl.conf /etc/nginx/conf.d/default-ssl.conf
@@ -189,11 +154,6 @@ COPY conf/supervisor/* /etc/supervisor/conf.d/
 COPY conf/ssl/* /etc/nginx/ssl/
 COPY start.withoutNodejs.sh /start.sh
 RUN chmod +x /start.sh
-
-# redirect nginx logs to docker stdout/stderr
-RUN mkdir -p /var/log/nginx \
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # create nginx user/group & set permissions for /var/www/html
 RUN addgroup -g 101 -S nginx || true \
@@ -210,7 +170,7 @@ WORKDIR /var/www/html
 
 EXPOSE 80 443
 
-# Healthcheck: check nginx /health and php-fpm status /php-fpm-status
+# Healthcheck: check nginx /up and php-fpm status /php-fpm-status
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD sh -c 'curl -fsS http://localhost/up >/dev/null && curl -fsS http://localhost/php-fpm-status >/dev/null || exit 1'
 
