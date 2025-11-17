@@ -1,6 +1,7 @@
 #!/bin/bash
 
-docker build \
-    --build-arg APKMIRROR="turbo.net.id" \
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
     -f Dockerfile.withoutNodejs \
-    -t ferilagi/invis:nginx_php .
+    -t ferilagi/webserver:php8.4.14 \
+    --push .
