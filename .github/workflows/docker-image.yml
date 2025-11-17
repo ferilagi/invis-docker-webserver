@@ -31,7 +31,9 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ferilagi/webserver:${{ github.ref_name }}
+          tags: |
+            ferilagi/webserver:${{ github.ref_name }}
+            ferilagi/webserver:latest
 
       # Build Dockerfile.withoutNodejs kalau tag tidak mengandung "node"
       - name: Build and push (without Node)
