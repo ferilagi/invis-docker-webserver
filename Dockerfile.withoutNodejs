@@ -37,7 +37,8 @@ RUN apk update && apk add --no-cache --virtual .php-build-deps \
     zlib-dev libzip-dev oniguruma-dev icu-dev linux-headers \
     libpng-dev libjpeg-turbo-dev freetype-dev libwebp-dev \
     imagemagick-dev rabbitmq-c-dev cyrus-sasl-dev libxml2-dev \
-    libmemcached-dev openldap-dev imap-dev postgresql-dev openssl-dev
+    libmemcached-dev openldap-dev imap-dev postgresql-dev openssl-dev \
+    gettext-dev
 
 # runtime libs used by extensions (copied to runtime)
 RUN apk add --no-cache \
