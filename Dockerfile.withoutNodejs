@@ -29,9 +29,10 @@ ENV PHP_MODULE_DEPS="gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev 
 # ENV MUSL_LOCALE_DEPS cmake make musl-dev gcc gettext-dev libintl 
 # ENV MUSL_LOCPATH /usr/share/i18n/locales/musl
 
-ENV NGINX_VERSION=1.29.3
+# Indeks repository mainline for alpine3.24
+ENV NGINX_VERSION=1.31.8
+ENV NJS_VERSION=1.0.2
 ENV NGINX_PKG_RELEASE=1
-ENV NJS_VERSION=0.9.4
 ENV PKG_RELEASE=1
 ENV IMAGICK_VERSION=3.8.0
 
