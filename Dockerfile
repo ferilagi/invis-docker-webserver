@@ -1,6 +1,6 @@
-FROM node:25.1.0-alpine3.22 AS nodejs
+FROM node:26.12.1-alpine3.24 AS nodejs
 
-FROM ferilagi/webserver:php8.4.14
+FROM ferilagi/webserver:php8.4.27
 
 LABEL org.opencontainers.image.authors="Nahdammar(nahdammar@gmail.com)"
 LABEL org.opencontainers.image.url="https://www.github.com/ferilagi/invis-docker-webserver"
