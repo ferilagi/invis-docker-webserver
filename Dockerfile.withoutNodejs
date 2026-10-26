@@ -112,9 +112,12 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
             && su nobody -s /bin/sh -c " \
                 export HOME=${tempDir} \
                 && cd ${tempDir} \
-                && hg clone https://hg.nginx.org/pkg-oss \
+                # && hg clone https://hg.nginx.org/pkg-oss \
+                # && cd pkg-oss \
+                # && hg up ${NGINX_VERSION}-${PKG_RELEASE} \
+                && git clone -b ${NGINX_VERSION}-${PKG_RELEASE} https://github.com/nginx/pkg-oss/ \
                 && cd pkg-oss \
-                && hg up ${NGINX_VERSION}-${PKG_RELEASE} \
+                && cd alpine \
                 && cd alpine \
                 && make all \
                 && apk index -o ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz ${tempDir}/packages/alpine/${apkArch}/*.apk \
