@@ -68,7 +68,7 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
         nginx-module-geoip=${NGINX_VERSION}-r${PKG_RELEASE} \
         nginx-module-image-filter=${NGINX_VERSION}-r${PKG_RELEASE} \
         nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r${NGINX_PKG_RELEASE} \
-        nginx-mod-http-brotli \
+        # nginx-mod-http-brotli \
     " \
     && case "$apkArch" in \
         x86_64|aarch64) \
