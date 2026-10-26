@@ -1,4 +1,4 @@
-FROM node:26.12.1-alpine3.24 AS nodejs
+FROM node:26.12.1-alpine3.23 AS nodejs
 
 FROM ferilagi/webserver:php8.4.27
 
