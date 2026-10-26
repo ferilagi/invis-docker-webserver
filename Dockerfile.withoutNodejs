@@ -74,7 +74,7 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
         x86_64|aarch64) \
 # arches officially built by upstream
             set -x \
-            && KEY_SHA512="de7031fdac1354096d3388d6f711a508328ce66c168967ee0658c294226d6e7a161ce7f2628d577d56f8b63ff6892cc576af6f7ef2a6aa2e17c62ff7b6bf0d98 *stdin" \
+            && KEY_SHA512="23b28b7e74da0c02be5f3be4d5be9bfcd779e5eb2a8523cb11352d100083652614b8a2153c306231bd4cb751f7bb9c233bebc3d67f7d14db5b0a390a886f7b11 *stdin" \
             && apk add --no-cache --virtual .cert-deps \
                 openssl \
             && wget -O /tmp/nginx_signing.rsa.pub https://nginx.org/keys/nginx_signing.rsa.pub \
