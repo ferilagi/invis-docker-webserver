@@ -39,6 +39,8 @@ jobs:
       - name: Build and push (without Node)
         if: "!contains(github.ref_name, 'node')"
         uses: docker/build-push-action@v6
+        env:
+          BUILDKIT_PROGRESS: plain
         with:
           file: Dockerfile.withoutNodejs
           platforms: linux/amd64,linux/arm64
