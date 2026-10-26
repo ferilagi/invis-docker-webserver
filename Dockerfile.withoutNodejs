@@ -100,6 +100,10 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
 ENV fpm_conf=/usr/local/etc/php-fpm.d/www.conf
 ENV php_vars=/usr/local/etc/php/conf.d/docker-vars.ini
 
+# 1. Pastikan folder socket dibuat dengan hak akses nginx saat build image
+RUN mkdir -p /var/run && chown -R nginx:nginx /var/run
+
+# 2. Blok perintah RUN sed Anda yang sudah diselaraskan kemarin (tetap sama)
 RUN echo "cgi.fix_pathinfo=0" > ${php_vars} &&\
     echo "upload_max_filesize = 100M"  >> ${php_vars} &&\
     echo "post_max_size = 100M"  >> ${php_vars} &&\
@@ -117,7 +121,7 @@ RUN echo "cgi.fix_pathinfo=0" > ${php_vars} &&\
         -e "s/;listen.mode = 0660/listen.mode = 0666/g" \
         -e "s/;listen.owner = www-data/listen.owner = nginx/g" \
         -e "s/;listen.group = www-data/listen.group = nginx/g" \
-        -e "s/listen = 127.0.0.1:9000/listen = \/var\/run\/php-fpm.sock/g" \
+        -e "s/;listen = .*/listen = \/var\/run\/php-fpm.sock/g" \
         -e "s/^;clear_env = no$/clear_env = no/" \
         ${fpm_conf} \
     && cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini

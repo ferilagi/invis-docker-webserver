@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Tambahkan baris ini untuk mengatasi error git dubious ownership
+git config --global --add safe.directory /var/www/html
+
 # Disable Strict Host checking for non interactive git clones
 
 # Set PHP composer mirror. China php composer mirror: https://mirrors.cloud.tencent.com/composer/
