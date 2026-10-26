@@ -63,10 +63,10 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
     && apkArch="$(cat /etc/apk/arch)" \
     && nginxPackages=" \
         nginx \
-        nginx-module-xslt \
-        nginx-module-geoip \
+        nginx-mod-http-xslt-filter \
+        nginx-mod-http-geoip \
         nginx-module-image-filter \
-        nginx-module-njs \
+        nginx-mod-http-njs \
         # nginx-mod-http-brotli \
     " \
     && apk add --no-cache $nginxPackages \
