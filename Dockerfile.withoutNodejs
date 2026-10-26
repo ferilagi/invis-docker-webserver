@@ -65,9 +65,10 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
         nginx \
         nginx-mod-http-xslt-filter \
         nginx-mod-http-geoip \
+        nginx-mod-http-js \
         nginx-module-image-filter \
-        nginx-mod-http-njs \
-        # nginx-mod-http-brotli \
+        nginx-mod-http-brotli \
+        nginx-mod-http-redis2 \
     " \
     && apk add --no-cache $nginxPackages \
 # Bring in gettext so we can get `envsubst`, then throw
