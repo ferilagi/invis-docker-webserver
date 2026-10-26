@@ -1,4 +1,4 @@
-FROM php:8.4.27-fpm-alpine3.24
+FROM php:8.4.27-fpm-alpine3.23
 
 LABEL org.opencontainers.image.authors="Nahdammar(nahdammar@gmail.com)"
 LABEL org.opencontainers.image.url="https://www.github.com/ferilagi/invis-docker-webserver"
@@ -29,10 +29,9 @@ ENV PHP_MODULE_DEPS="gcc make libc-dev rabbitmq-c-dev zlib-dev libmemcached-dev 
 # ENV MUSL_LOCALE_DEPS cmake make musl-dev gcc gettext-dev libintl 
 # ENV MUSL_LOCPATH /usr/share/i18n/locales/musl
 
-# Indeks repository mainline for alpine3.24
-ENV NGINX_VERSION=1.30.6
-ENV NJS_VERSION=0.8.9
+ENV NGINX_VERSION=1.29.3
 ENV NGINX_PKG_RELEASE=1
+ENV NJS_VERSION=0.9.4
 ENV PKG_RELEASE=1
 ENV IMAGICK_VERSION=3.8.0
 
@@ -74,9 +73,11 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
         x86_64|aarch64) \
 # arches officially built by upstream
             set -x \
-            && apk add --no-cache --virtual .cert-deps wget coreutils \
+            && KEY_SHA512="de7031fdac1354096d3388d6f711a508328ce66c168967ee0658c294226d6e7a161ce7f2628d577d56f8b63ff6892cc576af6f7ef2a6aa2e17c62ff7b6bf0d98 *stdin" \
+            && apk add --no-cache --virtual .cert-deps \
+                openssl \
             && wget -O /tmp/nginx_signing.rsa.pub https://nginx.org/keys/nginx_signing.rsa.pub \
-            && if echo "e09fa32f0a0eab2b879ccbbc4d0e4fb9751486eedda75e35fac65802cc9faa266425edf83e261137a2f4d16281ce2c1a5f4502930fe75154723da014214f0655  /tmp/nginx_signing.rsa.pub" | sha512sum -c -; then \
+            && if [ "$(openssl rsa -pubin -in /tmp/nginx_signing.rsa.pub -text -noout | openssl sha512 -r)" = "$KEY_SHA512" ]; then \
                 echo "key verification succeeded!"; \
                 mv /tmp/nginx_signing.rsa.pub /etc/apk/keys/; \
             else \
@@ -85,7 +86,6 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
             fi \
             && apk del .cert-deps \
             && apk add -X "https://nginx.org/packages/mainline/alpine/v$(egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release)/main" --no-cache $nginxPackages \
-            # && apk add --no-cache $nginxPackages \
             ;; \
         *) \
 # we're on an architecture upstream doesn't officially build for
@@ -113,12 +113,9 @@ RUN if [ "$APKMIRROR" != "dl-cdn.alpinelinux.org" ]; then sed -i 's/dl-cdn.alpin
             && su nobody -s /bin/sh -c " \
                 export HOME=${tempDir} \
                 && cd ${tempDir} \
-                # && hg clone https://hg.nginx.org/pkg-oss \
-                # && cd pkg-oss \
-                # && hg up ${NGINX_VERSION}-${PKG_RELEASE} \
-                && git clone -b ${NGINX_VERSION}-${PKG_RELEASE} https://github.com/nginx/pkg-oss/ \
+                && hg clone https://hg.nginx.org/pkg-oss \
                 && cd pkg-oss \
-                && cd alpine \
+                && hg up ${NGINX_VERSION}-${PKG_RELEASE} \
                 && cd alpine \
                 && make all \
                 && apk index -o ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz ${tempDir}/packages/alpine/${apkArch}/*.apk \
