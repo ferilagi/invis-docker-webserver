@@ -1,0 +1,72 @@
+name: Security Scan (CVE)
+
+# Scan image yang sudah dipublish di Docker Hub, catat riwayat CVE, dan
+# tulis temuannya ke CVE-History.md (status + riwayat).
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "CVE-History.md"
+      - "reports/**"
+  schedule:
+    - cron: "0 2 * * 1" # tiap Senin 09:00 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit riwayat CVE
+  security-events: write # upload SARIF ke tab Security
+
+concurrency:
+  group: cve-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.3.1
+        with:
+          version: v0.76.2
+          cache: true
+
+      - name: Scan CVE + tulis riwayat
+        env:
+          SARIF: "1"
+        run: bash scripts/security/cve-scan.sh
+
+      - name: Upload SARIF (tab Security)
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true # private repo tanpa GHAS akan ditolak
+        with:
+          sarif_file: reports/
+          category: trivy-webserver
+
+      - name: Upload artifact laporan mentah
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cve-reports-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Commit CVE-History.md
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CVE-History.md
+          if git diff --cached --quiet; then
+            echo "Riwayat tidak berubah, tidak ada commit."
+            exit 0
+          fi
+          git commit -m "chore(security): snapshot CVE $(date -u +%F)"
+          # riwayat selalu dicatat di default branch, termasuk saat run manual
+          branch="${{ github.event.repository.default_branch }}"
+          git pull --rebase --autostash origin "$branch"
+          git push origin "HEAD:${branch}"

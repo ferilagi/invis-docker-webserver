@@ -1,0 +1,3 @@
+# hasil mentah Trivy (di-upload sebagai artifact, tidak di-commit)
+reports/
+.trivy-cache/

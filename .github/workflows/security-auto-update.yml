@@ -1,0 +1,85 @@
+name: Auto Update Base Images
+
+# Cek rilis patch PHP / Node / Alpine di Docker Hub, update Dockerfile dan
+# build script, lalu buka PR. Merge PR = siap di-tag untuk rebuild image.
+on:
+  schedule:
+    - cron: "30 3 * * 1" # tiap Senin 10:30 WIB
+  workflow_dispatch:
+    inputs:
+      alpine_mode:
+        description: "Mode alpine (same = tetap 3.x sekarang, latest = ikut upstream)"
+        type: choice
+        default: same
+        options:
+          - same
+          - latest
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hitung versi upstream & update file
+        id: update
+        env:
+          ALPINE_MODE: ${{ inputs.alpine_mode || 'same' }}
+        run: bash scripts/security/update-base-images.sh
+
+      - name: Ringkasan
+        run: |
+          {
+            echo "### Cek base image"
+            echo ""
+            echo "| Komponen | Sekarang | Upstream |"
+            echo "|---|---|---|"
+            echo "| PHP | ${{ steps.update.outputs.php_from }} | ${{ steps.update.outputs.php_version }} (alpine ${{ steps.update.outputs.php_alpine }}) |"
+            echo "| Node.js | ${{ steps.update.outputs.node_from }} | ${{ steps.update.outputs.node_version }} (alpine ${{ steps.update.outputs.node_alpine }}) |"
+            echo ""
+            echo "Ada perubahan: **${{ steps.update.outputs.changed }}**"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Buat Pull Request
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/security-base-update
+          delete-branch: true
+          title: "chore(security): update base image php ${{ steps.update.outputs.php_version }} / node ${{ steps.update.outputs.node_version }}"
+          commit-message: |
+            chore(security): update base image php ${{ steps.update.outputs.php_version }} / node ${{ steps.update.outputs.node_version }}
+
+            php ${{ steps.update.outputs.php_from }} -> ${{ steps.update.outputs.php_version }} (alpine ${{ steps.update.outputs.php_alpine }})
+            node ${{ steps.update.outputs.node_from }} -> ${{ steps.update.outputs.node_version }} (alpine ${{ steps.update.outputs.node_alpine }})
+          body: |
+            Update base image otomatis dari workflow **Auto Update Base Images**.
+
+            | Komponen | Sebelum | Sesudah |
+            |---|---|---|
+            | PHP | `${{ steps.update.outputs.php_from }}` | `${{ steps.update.outputs.php_version }}` (alpine `${{ steps.update.outputs.php_alpine }}`) |
+            | Node.js | `${{ steps.update.outputs.node_from }}` | `${{ steps.update.outputs.node_version }}` (alpine `${{ steps.update.outputs.node_alpine }}`) |
+
+            File yang diubah: `Dockerfile`, `Dockerfile.withoutNodejs`, `build.sh`, `build.withoutNodejs.sh`.
+
+            **Setelah PR di-merge, rebuild image dengan urutan ini** (yang without node dulu,
+            karena `Dockerfile` memakai `FROM ferilagi/webserver:php${{ steps.update.outputs.php_version }}`):
+
+            ```bash
+            git pull
+            git tag php${{ steps.update.outputs.php_version }}
+            git push origin php${{ steps.update.outputs.php_version }}
+
+            # tunggu build withoutNodejs selesai, lalu:
+            git tag php${{ steps.update.outputs.php_version }}_node${{ steps.update.outputs.node_version }}
+            git push origin php${{ steps.update.outputs.php_version }}_node${{ steps.update.outputs.node_version }}
+            ```
+
+            Setelah image baru ada, workflow **Security Scan** akan mencatat riwayat CVE-nya
+            dan perubahannya bisa dilihat di `CVE-History.md`.

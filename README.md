@@ -1,5 +1,7 @@
 # Nginx + php-fpm + nodejs
 
+**Riwayat scan CVE image ini: [CVE-History.md](CVE-History.md)**
+
 Based on php:8.4.14-fpm-alpine3.22, node:25.1.0-alpine3.22 (nodejs is needed by a lot of php frameworks),
 
 - Since `php8.4.1_node23.3.0`, PHP `brotli` module is added and `swoole` module is removed (it doesn't support 8.4 by now).
@@ -259,3 +261,67 @@ volumes:
 ```bash
 docker build -t my-webserver .
 ```
+
+## Otomatisasi CVE (scan, riwayat, auto update)
+
+Tiga workflow di `.github/workflows/`:
+
+| Workflow | Jadwal | Fungsi |
+|---|---|---|
+| `security-scan.yml` | tiap Senin 02:00 UTC + setiap push ke `main` | Scan `ferilagi/webserver:latest` dan `phpX.Y.Z` dengan Trivy, catat riwayat, render laporan, upload SARIF |
+| `security-auto-update.yml` | tiap Senin 03:30 UTC | Cek rilis patch PHP / Node / Alpine di Docker Hub, update `Dockerfile` + build script, buka PR |
+| `security-rebuild.yml` | tiap Minggu 04:00 UTC | Kalau ada CVE HIGH/CRITICAL yang sudah dipatch upstream, rebuild + push ulang tag yang sama |
+
+Semua temuan tercatat di satu file yang mudah dibaca: **[CVE-History.md](CVE-History.md)**.
+
+- Bagian **Status terakhir** — ringkasan CVE per image, versi PHP/Node vs upstream, dan daftar CVE CRITICAL/HIGH lengkap dengan paket, versi terpasang, dan versi perbaikannya.
+- Bagian **Riwayat scan** — satu entri per scan (terbaru di atas, maksimal 60 entri — sekitar setahun ke belakang) berisi jumlah CVE dan CVE baru / CVE yang hilang dibanding scan sebelumnya.
+- Tab **Security → Code scanning** — daftar CVE per paket (kalau repo support SARIF).
+- Artifact `cve-reports-<run>` — JSON/SARIF mentah Trivy (disimpan 30 hari, tidak di-commit).
+
+Jalankan manual dari laptop (butuh `jq` + `trivy` atau `docker`):
+
+```bash
+# scan image yang sudah publish di Docker Hub
+bash scripts/security/cve-scan.sh
+
+# scan image lokal
+bash scripts/security/cve-scan.sh my-webserver:test
+
+# cek versi upstream & update file tanpa commit
+DRY_RUN=1 bash scripts/security/update-base-images.sh
+```
+
+### Alur update image
+
+1. `security-auto-update.yml` buka PR "chore(security): update base image php ... / node ...".
+2. Review + merge. Lalu rebuild dengan urutan: tag tanpa node dulu, baru tag dengan node
+   (karena `Dockerfile` memakai `FROM ferilagi/webserver:phpX.Y.Z`).
+
+   ```bash
+   git tag php8.4.28 && git push origin php8.4.28
+   git tag php8.4.28_node26.13.1 && git push origin php8.4.28_node26.13.1
+   ```
+
+3. `security-scan.yml` jalan otomatis, riwayat CVE image baru tercatat dan bisa dibandingkan
+   di [CVE-History.md](CVE-History.md).
+
+Kalau hanya butuh patch nginx/apk (tanpa ganti versi PHP/Node), `security-rebuild.yml` yang
+menangani: dia rebuild tag yang sekarang dan push ulang, jadi patch Alpine ikut masuk.
+
+### Yang perlu disiapkan
+
+- Secret `DOCKERHUB_TOKEN` dan variable `DOCKERHUB_USERNAME` (sudah dipakai workflow build).
+- Workflow scan butuh izin `contents: write` untuk commit `CVE-History.md`. Kalau branch `main`
+  diproteksi, izinkan `github-actions[bot]` push (atau lewat Ruleset bypass), kalau tidak
+  commit riwayat akan gagal (laporan tetap tersimpan sebagai artifact).
+- Matikan rebuild otomatis kapan saja dengan repository variable `AUTO_REBUILD=false`.
+
+### Batasan yang perlu diketahui
+
+Trivy membaca **paket distro** (apk): nginx, modul nginx, musl, openssl, curl, imagemagick,
+dan library lain — ini yang biasanya jadi sumber CVE. PHP core, ekstensi PHP (hasil compile
+source / PECL), dan binary Node.js tidak terdeteksi sebagai paket, jadi CVE-nya tidak muncul
+di laporan Trivy; untuk itu yang dipakai adalah pemantauan rilis upstream
+(`security-auto-update.yml`) — setiap patch PHP/Node baru = perbaikan keamanan yang perlu
+di-rebuild.
