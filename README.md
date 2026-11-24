@@ -274,7 +274,7 @@ Tiga workflow di `.github/workflows/`:
 
 Semua temuan tercatat di satu file yang mudah dibaca: **[CVE-History.md](CVE-History.md)**.
 
-- Bagian **Status terakhir** — ringkasan CVE per image, versi PHP/Node vs upstream, dan daftar CVE CRITICAL/HIGH lengkap dengan paket, versi terpasang, dan versi perbaikannya.
+- Bagian **Status terakhir** — ringkasan CVE per image, versi PHP/Node vs upstream, daftar paket yang terdampak (paket + versi terpasang di image), dan daftar CVE CRITICAL/HIGH dengan paket terdampak serta versi perbaikannya. Angka CVE dihitung **unik**: satu CVE dihitung sekali walau menimpa beberapa subpaket dari sumber yang sama (mis. `nginx` + `nginx-mod-*`), dan hanya paket yang benar-benar terpasang di image yang dilaporkan.
 - Bagian **Riwayat scan** — satu entri per scan (terbaru di atas, maksimal 60 entri — sekitar setahun ke belakang) berisi jumlah CVE dan CVE baru / CVE yang hilang dibanding scan sebelumnya.
 - Tab **Security → Code scanning** — daftar CVE per paket (kalau repo support SARIF).
 - Artifact `cve-reports-<run>` — JSON/SARIF mentah Trivy (disimpan 30 hari, tidak di-commit).
