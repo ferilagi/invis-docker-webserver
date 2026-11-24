@@ -3,7 +3,14 @@
 **Riwayat scan CVE image ini: [CVE-History.md](CVE-History.md)** — ringkasan terakhir:
 
 <!-- cve-summary:start -->
-_Belum ada scan setelah blok ini ditambahkan; akan terisi otomatis oleh workflow `security-scan.yml`._
+Diperbarui otomatis: **2026-11-24** (workflow `security-scan.yml`, sumber: `CVE-History.md`)
+
+| Image | Digest | Alpine | CVE unik | CRITICAL | HIGH | MEDIUM | LOW | Ada patch |
+|---|---|---|---|---|---|---|---|---|
+| `ferilagi/webserver:latest` | `d6f307b03ded` | alpine 3.23.7 | 160 | 6 | 88 | 55 | 11 | 160 |
+| `ferilagi/webserver:php8.4.27` | `1cf4bd8a319d` | alpine 3.23.7 | 141 | 6 | 82 | 43 | 10 | 141 |
+
+Detail per CVE, paket terdampak (dengan asal paket), dan riwayat: **[CVE-History.md](CVE-History.md)**
 <!-- cve-summary:end -->
 
 Based on php:8.4.27-fpm-alpine3.23, node:26.12.1-alpine3.23 (nodejs is needed by a lot of php frameworks),
