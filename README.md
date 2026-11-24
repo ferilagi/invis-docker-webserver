@@ -1,8 +1,12 @@
 # Nginx + php-fpm + nodejs
 
-**Riwayat scan CVE image ini: [CVE-History.md](CVE-History.md)**
+**Riwayat scan CVE image ini: [CVE-History.md](CVE-History.md)** — ringkasan terakhir:
 
-Based on php:8.4.14-fpm-alpine3.22, node:25.1.0-alpine3.22 (nodejs is needed by a lot of php frameworks),
+<!-- cve-summary:start -->
+_Belum ada scan setelah blok ini ditambahkan; akan terisi otomatis oleh workflow `security-scan.yml`._
+<!-- cve-summary:end -->
+
+Based on php:8.4.27-fpm-alpine3.23, node:26.12.1-alpine3.23 (nodejs is needed by a lot of php frameworks),
 
 - Since `php8.4.1_node23.3.0`, PHP `brotli` module is added and `swoole` module is removed (it doesn't support 8.4 by now).
 - Since `php8.3.6_node22.1.0`, PHP `imagick` module is added.

@@ -60,12 +60,12 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CVE-History.md
+          git add CVE-History.md README.md
           if git diff --cached --quiet; then
             echo "Riwayat tidak berubah, tidak ada commit."
             exit 0
           fi
-          git commit -m "chore(security): snapshot CVE $(date -u +%F)"
+          git commit -m "chore(security): snapshot CVE $(date -u +%F) [skip ci]"
           # riwayat selalu dicatat di default branch, termasuk saat run manual
           branch="${{ github.event.repository.default_branch }}"
           git pull --rebase --autostash origin "$branch"

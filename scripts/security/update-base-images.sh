@@ -119,8 +119,13 @@ apply build.withoutNodejs.sh \
   'ferilagi/webserver:php[0-9]+\.[0-9]+\.[0-9]+' \
   "ferilagi/webserver:php${new_php}"
 
+# README: baris "Based on php:..., node:..." ikut versi yang dipakai build
+apply README.md \
+  'Based on php:[0-9]+\.[0-9]+\.[0-9]+-fpm-alpine[0-9]+\.[0-9]+, node:[0-9]+\.[0-9]+\.[0-9]+-alpine[0-9]+\.[0-9]+' \
+  "Based on php:${new_php}-fpm-alpine${new_php_alpine}, node:${new_node}-alpine${new_node_alpine}"
+
 if [ "$DRY_RUN" != "1" ] && git rev-parse --git-dir >/dev/null 2>&1; then
   echo
   echo "hasil perubahan:"
-  git --no-pager diff --stat -- Dockerfile Dockerfile.withoutNodejs build.sh build.withoutNodejs.sh
+  git --no-pager diff --stat -- Dockerfile Dockerfile.withoutNodejs build.sh build.withoutNodejs.sh README.md
 fi
